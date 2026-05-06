@@ -141,3 +141,68 @@ describe('MemoAgent.query()', () => {
     expect(memory.modules[0].responsibility).toBe('Updated.')
   })
 })
+
+describe('MemoAgent post-conversation extraction', () => {
+  let tmpDir: string
+  let adapter: MockAdapter
+  let agent: MemoAgent
+
+  beforeEach(async () => {
+    tmpDir = await mkdtemp(join(tmpdir(), 'memorag-test-'))
+    adapter = new MockAdapter()
+    agent = new MemoAgent({ adapter, memoryPath: join(tmpDir, 'docs/memorag') })
+  })
+
+  afterEach(async () => {
+    await rm(tmpDir, { recursive: true, force: true })
+  })
+
+  it('saves new global fact from conversation', async () => {
+    adapter.responses = [
+      'The answer is Redis.',
+      JSON.stringify({ fact: 'Uses Redis for caching.', module: 'global', confidence: 0.9 }),
+    ]
+    await agent.query('what caching do we use?')
+    const memory = await agent.getMemory()
+    expect(memory.global.entries.some(e => e.content.includes('Redis'))).toBe(true)
+  })
+
+  it('discards facts below confidence threshold', async () => {
+    adapter.responses = [
+      'Maybe Redis.',
+      JSON.stringify({ fact: 'Uses Redis.', module: 'global', confidence: 0.5 }),
+    ]
+    await agent.query('caching?')
+    const memory = await agent.getMemory()
+    expect(memory.global.entries).toHaveLength(0)
+  })
+
+  it('does not save anything when NO_NEW_FACTS', async () => {
+    adapter.responses = ['Standard answer.', 'NO_NEW_FACTS']
+    await agent.query('hello?')
+    const memory = await agent.getMemory()
+    expect(memory.global.entries).toHaveLength(0)
+  })
+
+  it('does not throw when extraction response is not parseable', async () => {
+    adapter.responses = ['Answer.', 'some garbage response']
+    await expect(agent.query('hello?')).resolves.not.toThrow()
+    const memory = await agent.getMemory()
+    expect(memory.global.entries).toHaveLength(0)
+  })
+
+  it('uses configurable confidence threshold', async () => {
+    const strictAgent = new MemoAgent({
+      adapter,
+      memoryPath: join(tmpDir, 'docs/memorag-strict'),
+      confidenceThreshold: 0.95,
+    })
+    adapter.responses = [
+      'Answer.',
+      JSON.stringify({ fact: 'Uses Redis.', module: 'global', confidence: 0.9 }),
+    ]
+    await strictAgent.query('caching?')
+    const memory = await strictAgent.getMemory()
+    expect(memory.global.entries).toHaveLength(0)
+  })
+})

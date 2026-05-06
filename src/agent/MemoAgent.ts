@@ -1,4 +1,4 @@
-import { createHash } from 'crypto'
+import { createHash, randomUUID } from 'crypto'
 import { readFile } from 'fs/promises'
 import { basename, extname } from 'path'
 import { LLMAdapter } from '../adapters/LLMAdapter'
@@ -44,6 +44,28 @@ File: ${filename}
 ${content}
 \`\`\`
 Return ONLY the JSON object. No explanation, no markdown fences.`
+}
+
+function postConversationPrompt(query: string, response: string): string {
+  return `From this conversation extract ONLY verifiable facts about the codebase.
+If no concrete new facts exist, respond exactly: NO_NEW_FACTS
+Otherwise respond with valid JSON only (single object, no explanation):
+{ "fact": "the fact", "module": "ModuleName or global", "confidence": 0.0 }
+
+User: ${query}
+Assistant: ${response}`
+}
+
+interface ExtractedFact {
+  fact: string
+  module: string
+  confidence: number
+}
+
+function isValidFact(obj: unknown): obj is ExtractedFact {
+  if (typeof obj !== 'object' || obj === null) return false
+  const o = obj as Record<string, unknown>
+  return typeof o.fact === 'string' && typeof o.module === 'string' && typeof o.confidence === 'number'
 }
 
 export class MemoAgent {
@@ -167,12 +189,43 @@ export class MemoAgent {
   }
 
   private async extractAndSaveFromConversation(query: string, response: string): Promise<void> {
-    const extractionPrompt = `Given this Q&A exchange, extract any new facts worth remembering. If none, respond with NO_NEW_FACTS.\n\nQ: ${query}\nA: ${response}`
+    let raw: string
     try {
-      await this.adapter.complete(extractionPrompt)
+      raw = await this.adapter.complete(postConversationPrompt(query, response))
     } catch {
-      this.logger.warn('extractAndSaveFromConversation: LLM call failed, skipping')
+      this.logger.warn('post-extraction: LLM call failed, skipping')
+      return
     }
+
+    if (raw.trim() === 'NO_NEW_FACTS') return
+
+    let parsed: unknown
+    try {
+      parsed = JSON.parse(raw)
+    } catch {
+      this.logger.debug('post-extraction: response not JSON, discarding')
+      return
+    }
+
+    if (!isValidFact(parsed)) {
+      this.logger.debug('post-extraction: invalid fact shape, discarding')
+      return
+    }
+
+    if (parsed.confidence < this.confidenceThreshold) {
+      this.logger.debug(`post-extraction: confidence ${parsed.confidence} below threshold, discarding`)
+      return
+    }
+
+    await this.store.saveGlobal({
+      id: randomUUID(),
+      topic: parsed.module === 'global' ? 'conversation' : parsed.module,
+      content: parsed.fact,
+      confidence: parsed.confidence,
+      source: 'conversation',
+      createdAt: new Date().toISOString(),
+    })
+    this.logger.info(`post-extraction: saved fact "${parsed.fact.slice(0, 60)}"`)
   }
 
   async getMemory(): Promise<{ global: GlobalMemory; modules: ModuleMemory[] }> {
