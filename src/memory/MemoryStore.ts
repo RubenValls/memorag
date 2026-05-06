@@ -1,0 +1,74 @@
+import { readFile, writeFile, mkdir, readdir } from 'fs/promises'
+import { join, dirname } from 'path'
+import { GlobalMemory, MemoryEntry, ModuleMemory } from './types'
+
+export interface MemoryStore {
+  saveGlobal(entry: MemoryEntry): Promise<void>
+  saveModule(moduleName: string, data: ModuleMemory): Promise<void>
+  getGlobal(): Promise<GlobalMemory>
+  getModule(moduleName: string): Promise<ModuleMemory | null>
+  getAllModules(): Promise<ModuleMemory[]>
+}
+
+export class JsonMemoryStore implements MemoryStore {
+  private globalPath: string
+  private modulesDir: string
+
+  constructor(private basePath: string) {
+    this.globalPath = join(basePath, 'global.json')
+    this.modulesDir = join(basePath, 'modules')
+  }
+
+  async saveGlobal(entry: MemoryEntry): Promise<void> {
+    const memory = await this.getGlobal()
+    const idx = memory.entries.findIndex(e => e.id === entry.id)
+    if (idx >= 0) {
+      memory.entries[idx] = entry
+    } else {
+      memory.entries.push(entry)
+    }
+    memory.updatedAt = new Date().toISOString()
+    await mkdir(dirname(this.globalPath), { recursive: true })
+    await writeFile(this.globalPath, JSON.stringify(memory, null, 2))
+  }
+
+  async saveModule(moduleName: string, data: ModuleMemory): Promise<void> {
+    await mkdir(this.modulesDir, { recursive: true })
+    await writeFile(
+      join(this.modulesDir, `${moduleName}.json`),
+      JSON.stringify(data, null, 2)
+    )
+  }
+
+  async getGlobal(): Promise<GlobalMemory> {
+    try {
+      return JSON.parse(await readFile(this.globalPath, 'utf-8'))
+    } catch {
+      return { version: 1, updatedAt: new Date().toISOString(), entries: [] }
+    }
+  }
+
+  async getModule(moduleName: string): Promise<ModuleMemory | null> {
+    try {
+      return JSON.parse(
+        await readFile(join(this.modulesDir, `${moduleName}.json`), 'utf-8')
+      )
+    } catch {
+      return null
+    }
+  }
+
+  async getAllModules(): Promise<ModuleMemory[]> {
+    try {
+      const files = await readdir(this.modulesDir)
+      const results = await Promise.all(
+        files
+          .filter(f => f.endsWith('.json'))
+          .map(f => this.getModule(f.slice(0, -5)))
+      )
+      return results.filter((m): m is ModuleMemory => m !== null)
+    } catch {
+      return []
+    }
+  }
+}
