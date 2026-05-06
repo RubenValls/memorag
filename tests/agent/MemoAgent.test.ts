@@ -93,3 +93,51 @@ describe('MemoAgent.ingest()', () => {
     await expect(agent.ingest('/nonexistent/file.ts')).resolves.not.toThrow()
   })
 })
+
+describe('MemoAgent.query()', () => {
+  let tmpDir: string
+  let adapter: MockAdapter
+  let agent: MemoAgent
+
+  beforeEach(async () => {
+    tmpDir = await mkdtemp(join(tmpdir(), 'memorag-test-'))
+    adapter = new MockAdapter()
+    agent = new MemoAgent({ adapter, memoryPath: join(tmpDir, 'docs/memorag') })
+  })
+
+  afterEach(async () => {
+    await rm(tmpDir, { recursive: true, force: true })
+  })
+
+  it('returns LLM response for a query', async () => {
+    adapter.responses = ['JWT is a token format.', 'NO_NEW_FACTS']
+    const result = await agent.query('What is JWT?')
+    expect(result).toBe('JWT is a token format.')
+  })
+
+  it('sends two LLM calls: one for answer, one for extraction', async () => {
+    adapter.responses = ['The answer.', 'NO_NEW_FACTS']
+    await agent.query('any question?')
+    expect(adapter.calls).toHaveLength(2)
+  })
+
+  it('re-ingests a changed module before answering', async () => {
+    const srcFile = join(tmpDir, 'AuthService.ts')
+    await writeFile(srcFile, 'export class AuthService {}')
+
+    adapter.responses = [makeModuleJson()]
+    await agent.ingest(srcFile)
+
+    await writeFile(srcFile, 'export class AuthService { login() {} }')
+
+    adapter.responses = [
+      makeModuleJson({ responsibility: 'Updated.' }),
+      'Updated answer.',
+      'NO_NEW_FACTS',
+    ]
+    const result = await agent.query('auth login')
+    expect(result).toBe('Updated answer.')
+    const memory = await agent.getMemory()
+    expect(memory.modules[0].responsibility).toBe('Updated.')
+  })
+})

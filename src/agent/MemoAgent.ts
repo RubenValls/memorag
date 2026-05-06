@@ -131,8 +131,48 @@ export class MemoAgent {
     }
   }
 
-  async query(_text: string): Promise<string> {
-    throw new Error('Not implemented yet')
+  async query(text: string): Promise<string> {
+    await this.checkAndRefreshModules()
+
+    const context = await this.retriever.retrieve(text)
+    const prompt = this.promptBuilder.build(text, context)
+
+    let response: string
+    try {
+      response = await this.adapter.complete(prompt)
+    } catch (err) {
+      throw new Error(`MemoAgent: LLM call failed — ${err}`)
+    }
+
+    await this.extractAndSaveFromConversation(text, response)
+
+    return response
+  }
+
+  private async checkAndRefreshModules(): Promise<void> {
+    const modules = await this.store.getAllModules()
+    for (const module of modules) {
+      if (!module.sourcePath) continue
+      try {
+        const content = await readFile(module.sourcePath, 'utf-8')
+        const hash = hashContent(content)
+        if (hash !== module.sourceHash) {
+          this.logger.info(`query: ${module.name} changed, re-ingesting`)
+          await this.ingest(module.sourcePath)
+        }
+      } catch {
+        this.logger.warn(`query: cannot read ${module.sourcePath}, skipping hash check`)
+      }
+    }
+  }
+
+  private async extractAndSaveFromConversation(query: string, response: string): Promise<void> {
+    const extractionPrompt = `Given this Q&A exchange, extract any new facts worth remembering. If none, respond with NO_NEW_FACTS.\n\nQ: ${query}\nA: ${response}`
+    try {
+      await this.adapter.complete(extractionPrompt)
+    } catch {
+      this.logger.warn('extractAndSaveFromConversation: LLM call failed, skipping')
+    }
   }
 
   async getMemory(): Promise<{ global: GlobalMemory; modules: ModuleMemory[] }> {
