@@ -1,6 +1,6 @@
 {
-  "name": "@rubenvalls/memorag",
-  "version": "2.0.0",
+  "name": "memorag-mcp",
+  "version": "2.0.1",
   "type": "module",
   "description": "Intelligent context management layer for LLMs — incremental memory, token-efficient retrieval, MCP server included",
   "main": "dist/index.js",
@@ -37,7 +37,7 @@
     "codex",
     "model-context-protocol"
   ],
-  "author": "",
+  "author": "Rubén Valls",
   "license": "MIT",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",

@@ -1,4 +1,4 @@
-# memorag
+# memorag-mcp
 
 Zero-config persistent memory for AI coding assistants. memorag learns your codebase incrementally and injects relevant context into every conversation — automatically, with no API keys and no manual steps.
 
@@ -23,7 +23,7 @@ Add this to your MCP client config:
   "mcpServers": {
     "memorag": {
       "command": "npx",
-      "args": ["-y", "memorag"]
+      "args": ["-y", "memorag-mcp"]
     }
   }
 }
@@ -35,13 +35,13 @@ Add this to your MCP client config:
   "mcpServers": {
     "memorag": {
       "command": "npx",
-      "args": ["-y", "memorag"]
+      "args": ["-y", "memorag-mcp"]
     }
   }
 }
 ```
 
-**Any MCP-compatible client** — same pattern: `command: "npx", args: ["-y", "memorag"]`.
+**Any MCP-compatible client** — same pattern: `command: "npx", args: ["-y", "memorag-mcp"]`.
 
 That's the full setup. No `npm install`, no API keys, no config files. `npx` downloads and runs memorag automatically.
 
@@ -114,8 +114,12 @@ When source files change, memorag detects it by hash and re-ingests automaticall
 
 For custom integrations:
 
+```bash
+npm install memorag-mcp
+```
+
 ```typescript
-import { MemoAgent } from 'memorag'
+import { MemoAgent } from 'memorag-mcp'
 
 const agent = new MemoAgent({ memoryPath: './docs/memorag' })
 
@@ -134,10 +138,10 @@ await agent.removeModule('OldModule')
 The CLI runs automatically via MCP. These are available for manual use:
 
 ```bash
-npx memorag              # start MCP server (default)
-npx memorag ingest <file>  # parse and save a file
-npx memorag parse <file>    # parse without saving (dry run)
-npx memorag inspect         # show current memory
+npx memorag-mcp              # start MCP server (default)
+npx memorag-mcp ingest <file>  # parse and save a file
+npx memorag-mcp parse <file>   # parse without saving (dry run)
+npx memorag-mcp inspect         # show current memory
 ```
 
 ## Configuration
@@ -150,7 +154,7 @@ npx memorag inspect         # show current memory
 ## Architecture
 
 ```
-memorag
+memorag-mcp
 ├── MCP Server          — automatic instructions via protocol
 ├── MemoAgent           — programmatic API
 ├── StaticParser        — zero-cost static analysis (6 languages)
