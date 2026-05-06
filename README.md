@@ -4,10 +4,20 @@ A Node.js/TypeScript library that acts as an intelligent context management laye
 
 **No API keys required.** memorag uses static analysis to extract module structure and integrates with AI coding assistants via MCP (Model Context Protocol). The LLM is provided by the host assistant, not by memorag.
 
+## How it works automatically
+
+When you connect memorag as an MCP server, it sends **instructions** to the AI assistant via the MCP protocol — no extra config files or setup needed. Any MCP-compatible client (Claude Code, OpenCode, Codex, etc.) receives these instructions automatically and knows how to use memorag's tools:
+
+1. **Before answering** → the assistant calls `retrieve_context` to load relevant modules
+2. **When reading/editing files** → the assistant calls `ingest_file` to update memory
+3. **After learning facts** → the assistant calls `save_fact` to persist verified knowledge
+
+This is **built into the MCP protocol** — zero external dependencies, zero config files.
+
 ## Features
 
 - **Zero cost** — no external API calls, runs entirely locally
-- **MCP server** — plug into Claude Code, OpenCode, Codex, or any MCP-compatible assistant
+- **MCP server** — plug into any MCP-compatible assistant, instructions delivered automatically
 - **Static parsing** — extracts exports, imports, classes, functions, and throws from TS/JS, Python, Go, Rust, Java, Ruby
 - **Persistent memory** — stores structured JSON summaries under your project
 - **Hash-based refresh** — re-ingests automatically when source files change
@@ -38,7 +48,7 @@ Add to your MCP client config (Claude Code, OpenCode, etc.):
 }
 ```
 
-Then the AI assistant can use these tools:
+That's it. The AI assistant will automatically use memorag's tools when connected:
 
 | Tool | Description |
 |------|-------------|
@@ -226,7 +236,7 @@ Accepts `maxModules` config to limit the number of returned modules.
 
 ```
 memorag
-├── MCP Server          — tools for AI assistants (Claude Code, OpenCode, etc.)
+├── MCP Server          — tools for AI assistants (automatic instructions via protocol)
 ├── MemoAgent           — programmatic API
 ├── StaticParser        — language-aware static analysis (no LLM)
 ├── MemoryStore         — persists/reads JSON from disk

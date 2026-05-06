@@ -9,6 +9,34 @@ export interface McpServerConfig {
   logLevel?: 'debug' | 'info' | 'warn' | 'error' | 'silent'
 }
 
+const INSTRUCTIONS = `You have access to memorag, a persistent memory system for codebase context. Use it proactively to build and maintain knowledge about the project.
+
+## When to use each tool
+
+### At the start of a conversation:
+1. Call \`retrieve_context\` with the user's topic to load relevant context before answering.
+
+### When encountering a source file:
+2. Call \`ingest_file\` with the file's absolute path. This parses the file statically (no LLM needed) and saves a structured summary. Always ingest files you reference or modify.
+
+### After discovering new facts about the codebase:
+3. Call \`save_fact\` with the fact, the related module name (or "global"), and your confidence (0-1). Only save facts you are certain about — confidence below 0.7 is discarded.
+
+### When the static parser misses details:
+4. Call \`register_module\` to manually correct or enrich a module's summary.
+
+### To inspect memory:
+5. Call \`get_memory\` to see all stored modules and facts.
+
+### To remove stale data:
+6. Call \`remove_module\` to delete a module that is no longer relevant.
+
+## Important guidelines
+- Always ingest files before answering questions about them, so memory stays current.
+- Always retrieve context before answering code questions — this avoids redundant code reading.
+- Save facts only from verified observations, not assumptions.
+- Use the module name (e.g., "AuthService") not the file path for the module parameter.`
+
 export function createMcpServer(config: McpServerConfig = {}): McpServer {
   const agent = new MemoAgent({
     memoryPath: config.memoryPath,
@@ -16,10 +44,10 @@ export function createMcpServer(config: McpServerConfig = {}): McpServer {
     logLevel: config.logLevel,
   })
 
-  const server = new McpServer({
-    name: 'memorag',
-    version: '1.0.0',
-  })
+  const server = new McpServer(
+    { name: 'memorag', version: '2.0.0' },
+    { instructions: INSTRUCTIONS },
+  )
 
   server.tool(
     'ingest_file',
