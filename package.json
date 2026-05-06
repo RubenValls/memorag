@@ -1,23 +1,47 @@
 {
   "name": "memorag",
-  "version": "1.0.0",
+  "version": "2.0.0",
+  "type": "module",
+  "description": "Intelligent context management layer for LLMs — incremental memory, token-efficient retrieval, MCP server included",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "bin": {
+    "memorag": "dist/cli.js"
+  },
   "directories": {
     "doc": "docs"
   },
   "scripts": {
     "build": "tsc",
+    "start": "node dist/cli.js",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage"
+    "test:coverage": "jest --coverage",
+    "prepublishOnly": "npm run build"
   },
-  "keywords": [],
+  "keywords": [
+    "mcp",
+    "llm",
+    "context-management",
+    "token-optimization",
+    "memory",
+    "codebase-indexing",
+    "claude",
+    "opencode",
+    "codex",
+    "model-context-protocol"
+  ],
   "author": "",
-  "license": "ISC",
-  "description": "",
+  "license": "MIT",
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.94.0"
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "zod": "^3.23.0"
   },
   "devDependencies": {
     "@types/jest": "^29.5.14",

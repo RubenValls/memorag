@@ -1,12 +1,20 @@
-import { ModuleMemory, RelevantContext } from '../memory/types'
-import { MemoryStore } from '../memory/MemoryStore'
+import { ModuleMemory, RelevantContext, ScoredModule } from '../memory/types.js'
+import { MemoryStore } from '../memory/MemoryStore.js'
 
 export interface ContextRetriever {
   retrieve(query: string): Promise<RelevantContext>
 }
 
+export interface ContextRetrieverConfig {
+  maxModules?: number
+}
+
 export class KeywordContextRetriever implements ContextRetriever {
-  constructor(private store: MemoryStore) {}
+  private maxModules: number
+
+  constructor(private store: MemoryStore, config?: ContextRetrieverConfig) {
+    this.maxModules = config?.maxModules ?? 10
+  }
 
   async retrieve(query: string): Promise<RelevantContext> {
     const terms = query.toLowerCase().split(/\s+/).filter(Boolean)
@@ -21,28 +29,43 @@ export class KeywordContextRetriever implements ContextRetriever {
       )
     )
 
-    const directMatches = allModules.filter(m => this.matches(m, terms))
-    const expandedNames = new Set(directMatches.map(m => m.name))
+    const scored: ScoredModule[] = allModules
+      .map(m => ({ ...m, score: this.scoreModule(m, terms) }))
+      .filter(m => m.score > 0)
+      .sort((a, b) => b.score - a.score)
 
-    // One level deep: include direct dependencies of matched modules
-    for (const m of directMatches) {
+    const directMatchNames = new Set(scored.map(m => m.name))
+
+    for (const m of scored) {
       for (const dep of m.dependencies) {
-        expandedNames.add(dep)
+        directMatchNames.add(dep)
       }
     }
 
-    const modules = allModules.filter(m => expandedNames.has(m.name))
+    const expandedModules = allModules.filter(m => directMatchNames.has(m.name))
+    const limitedScored = scored.slice(0, this.maxModules)
 
-    return { globalEntries, modules }
+    return { globalEntries, modules: expandedModules, scoredModules: limitedScored }
   }
 
-  private matches(module: ModuleMemory, terms: string[]): boolean {
-    const text = [
+  private scoreModule(module: ModuleMemory, terms: string[]): number {
+    const fields: string[] = [
       module.name,
       module.responsibility,
       module.notes ?? '',
       ...module.tags,
-    ].join(' ').toLowerCase()
-    return terms.some(t => text.includes(t))
+      ...module.exposes,
+    ]
+    const text = fields.join(' ').toLowerCase()
+    let score = 0
+    for (const term of terms) {
+      const idx = text.indexOf(term)
+      if (idx >= 0) {
+        score += 1
+        if (module.name.toLowerCase().includes(term)) score += 2
+        if (module.tags.some(t => t.toLowerCase() === term)) score += 1
+      }
+    }
+    return score
   }
 }

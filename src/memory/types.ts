@@ -29,7 +29,12 @@ export interface ModuleMemory {
   sourceHash: string
 }
 
+export interface ScoredModule extends ModuleMemory {
+  score: number
+}
+
 export interface RelevantContext {
   globalEntries: MemoryEntry[]
   modules: ModuleMemory[]
+  scoredModules: ScoredModule[]
 }

@@ -100,5 +100,26 @@ describe('JsonMemoryStore', () => {
     it('returns empty array when no modules exist', async () => {
       expect(await store.getAllModules()).toEqual([])
     })
+
+    it('removes an existing module', async () => {
+      await store.saveModule('AuthService', makeModule())
+      const removed = await store.removeModule('AuthService')
+      expect(removed).toBe(true)
+      expect(await store.getModule('AuthService')).toBeNull()
+    })
+
+    it('returns false when removing non-existent module', async () => {
+      const removed = await store.removeModule('DoesNotExist')
+      expect(removed).toBe(false)
+    })
+
+    it('does not affect other modules when removing one', async () => {
+      await store.saveModule('AuthService', makeModule({ name: 'AuthService' }))
+      await store.saveModule('UserRepo', makeModule({ name: 'UserRepo' }))
+      await store.removeModule('AuthService')
+      const remaining = await store.getAllModules()
+      expect(remaining).toHaveLength(1)
+      expect(remaining[0].name).toBe('UserRepo')
+    })
   })
 })

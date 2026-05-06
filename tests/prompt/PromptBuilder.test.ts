@@ -1,7 +1,7 @@
-import { DefaultPromptBuilder } from '../../src/prompt/PromptBuilder'
-import { RelevantContext, ModuleMemory } from '../../src/memory/types'
+import { DefaultPromptBuilder } from '../../src/prompt/PromptBuilder.js'
+import { RelevantContext, ModuleMemory } from '../../src/memory/types.js'
 
-const emptyContext: RelevantContext = { globalEntries: [], modules: [] }
+const emptyContext: RelevantContext = { globalEntries: [], modules: [], scoredModules: [] }
 
 const makeContextModule = (overrides: Partial<ModuleMemory> = {}): ModuleMemory => ({
   name: 'AuthService',
@@ -41,6 +41,7 @@ describe('DefaultPromptBuilder', () => {
         createdAt: '',
       }],
       modules: [],
+      scoredModules: [],
     }
     const prompt = builder.build('overview', ctx)
     expect(prompt).toContain('Monorepo with 3 services.')
@@ -48,7 +49,11 @@ describe('DefaultPromptBuilder', () => {
   })
 
   it('includes module name and responsibility', () => {
-    const ctx: RelevantContext = { globalEntries: [], modules: [makeContextModule()] }
+    const ctx: RelevantContext = {
+      globalEntries: [],
+      modules: [makeContextModule()],
+      scoredModules: [],
+    }
     const prompt = builder.build('auth', ctx)
     expect(prompt).toContain('AuthService')
     expect(prompt).toContain('Manages JWT tokens.')
@@ -58,6 +63,7 @@ describe('DefaultPromptBuilder', () => {
     const ctx: RelevantContext = {
       globalEntries: [],
       modules: [makeContextModule({ exposes: ['login()', 'verify()'] })],
+      scoredModules: [],
     }
     const prompt = builder.build('auth', ctx)
     expect(prompt).toContain('login()')
@@ -68,6 +74,7 @@ describe('DefaultPromptBuilder', () => {
     const ctx: RelevantContext = {
       globalEntries: [],
       modules: [makeContextModule({ notes: 'Throws even if signature valid.' })],
+      scoredModules: [],
     }
     const prompt = builder.build('auth', ctx)
     expect(prompt).toContain('Throws even if signature valid.')
@@ -77,9 +84,39 @@ describe('DefaultPromptBuilder', () => {
     const ctx: RelevantContext = {
       globalEntries: [],
       modules: [makeContextModule({ exposes: [], dependencies: [] })],
+      scoredModules: [],
     }
     const prompt = builder.build('auth', ctx)
     expect(prompt).not.toContain('Exposes:')
     expect(prompt).not.toContain('Depends on:')
+  })
+})
+
+describe('DefaultPromptBuilder.formatContext()', () => {
+  const builder = new DefaultPromptBuilder()
+
+  it('returns empty string for empty context', () => {
+    const result = builder.formatContext(emptyContext)
+    expect(result).toBe('')
+  })
+
+  it('returns formatted modules and global entries without system prompt', () => {
+    const ctx: RelevantContext = {
+      globalEntries: [{
+        id: '1',
+        topic: 'architecture',
+        content: 'Monorepo.',
+        confidence: 0.9,
+        source: 'ingest',
+        createdAt: '',
+      }],
+      modules: [makeContextModule()],
+      scoredModules: [],
+    }
+    const result = builder.formatContext(ctx)
+    expect(result).toContain('Monorepo.')
+    expect(result).toContain('AuthService')
+    expect(result).not.toContain('You are a software assistant')
+    expect(result).not.toContain('Question')
   })
 })

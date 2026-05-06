@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "memorag": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "memorag",
+        "--memory-path",
+        "./docs/memorag"
+      ]
+    }
+  }
+}

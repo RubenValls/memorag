@@ -1,7 +1,8 @@
-import { RelevantContext } from '../memory/types'
+import { RelevantContext } from '../memory/types.js'
 
 export interface PromptBuilder {
   build(query: string, context: RelevantContext): string
+  formatContext(context: RelevantContext): string
 }
 
 export class DefaultPromptBuilder implements PromptBuilder {
@@ -10,8 +11,19 @@ export class DefaultPromptBuilder implements PromptBuilder {
       'You are a software assistant with knowledge of this codebase. Answer concisely.',
     ]
 
+    const ctx = this.formatContext(context)
+    if (ctx) parts.push('\n' + ctx)
+
+    parts.push(`\n## Question\n${query}`)
+
+    return parts.join('\n')
+  }
+
+  formatContext(context: RelevantContext): string {
+    const parts: string[] = []
+
     if (context.globalEntries.length > 0) {
-      parts.push('\n## Project context')
+      parts.push('## Project context')
       for (const e of context.globalEntries) {
         parts.push(`- [${e.topic}] ${e.content}`)
       }
@@ -28,8 +40,6 @@ export class DefaultPromptBuilder implements PromptBuilder {
         parts.push(lines.join('\n'))
       }
     }
-
-    parts.push(`\n## Question\n${query}`)
 
     return parts.join('\n')
   }

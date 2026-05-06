@@ -1,16 +1,19 @@
-export { MemoAgent } from './agent/MemoAgent'
-export type { MemoAgentConfig } from './agent/MemoAgent'
-export { ClaudeAdapter } from './adapters/ClaudeAdapter'
-export type { LLMAdapter } from './adapters/LLMAdapter'
-export { JsonMemoryStore } from './memory/MemoryStore'
-export type { MemoryStore } from './memory/MemoryStore'
-export { KeywordContextRetriever } from './retrieval/ContextRetriever'
-export type { ContextRetriever } from './retrieval/ContextRetriever'
-export { DefaultPromptBuilder } from './prompt/PromptBuilder'
-export type { PromptBuilder } from './prompt/PromptBuilder'
+export { MemoAgent } from './agent/MemoAgent.js'
+export type { MemoAgentConfig } from './agent/MemoAgent.js'
+export { StaticParser } from './static/StaticParser.js'
+export type { ParsedModule } from './static/StaticParser.js'
+export { JsonMemoryStore } from './memory/MemoryStore.js'
+export type { MemoryStore } from './memory/MemoryStore.js'
+export { KeywordContextRetriever } from './retrieval/ContextRetriever.js'
+export type { ContextRetriever, ContextRetrieverConfig } from './retrieval/ContextRetriever.js'
+export { DefaultPromptBuilder } from './prompt/PromptBuilder.js'
+export type { PromptBuilder } from './prompt/PromptBuilder.js'
+export { createMcpServer, startMcpServer } from './mcp/server.js'
+export type { McpServerConfig } from './mcp/server.js'
 export type {
   ModuleMemory,
   GlobalMemory,
   MemoryEntry,
   RelevantContext,
-} from './memory/types'
+  ScoredModule,
+} from './memory/types.js'

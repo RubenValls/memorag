@@ -1,6 +1,6 @@
-import { readFile, writeFile, mkdir, readdir } from 'fs/promises'
-import { join, dirname } from 'path'
-import { GlobalMemory, MemoryEntry, ModuleMemory } from './types'
+import { readFile, writeFile, mkdir, readdir, unlink } from 'node:fs/promises'
+import { join, dirname } from 'node:path'
+import { GlobalMemory, MemoryEntry, ModuleMemory } from './types.js'
 
 export interface MemoryStore {
   saveGlobal(entry: MemoryEntry): Promise<void>
@@ -8,6 +8,7 @@ export interface MemoryStore {
   getGlobal(): Promise<GlobalMemory>
   getModule(moduleName: string): Promise<ModuleMemory | null>
   getAllModules(): Promise<ModuleMemory[]>
+  removeModule(moduleName: string): Promise<boolean>
 }
 
 export class JsonMemoryStore implements MemoryStore {
@@ -88,6 +89,19 @@ export class JsonMemoryStore implements MemoryStore {
       return results.filter((m): m is ModuleMemory => m !== null)
     } catch {
       return []
+    }
+  }
+
+  async removeModule(moduleName: string): Promise<boolean> {
+    const filePath = join(this.modulesDir, `${this.safeModuleName(moduleName)}.json`)
+    try {
+      await unlink(filePath)
+      return true
+    } catch (err: unknown) {
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+        return false
+      }
+      throw err
     }
   }
 }

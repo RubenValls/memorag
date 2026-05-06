@@ -1,9 +1,9 @@
-import { mkdtemp, rm } from 'fs/promises'
-import { join } from 'path'
-import { tmpdir } from 'os'
-import { JsonMemoryStore } from '../../src/memory/MemoryStore'
-import { KeywordContextRetriever } from '../../src/retrieval/ContextRetriever'
-import { ModuleMemory } from '../../src/memory/types'
+import { mkdtemp, rm } from 'node:fs/promises'
+import { join } from 'node:path'
+import { tmpdir } from 'node:os'
+import { JsonMemoryStore } from '../../src/memory/MemoryStore.js'
+import { KeywordContextRetriever } from '../../src/retrieval/ContextRetriever.js'
+import { ModuleMemory } from '../../src/memory/types.js'
 
 const authModule: ModuleMemory = {
   name: 'AuthService',
@@ -88,9 +88,34 @@ describe('KeywordContextRetriever', () => {
   })
 
   it('relational expansion does not go beyond one level', async () => {
-    // UserRepository.dependencies is [] so nothing further added
     const ctx = await retriever.retrieve('jwt')
     const names = ctx.modules.map(m => m.name)
     expect(names).toHaveLength(2)
+  })
+
+  it('returns scoredModules sorted by relevance', async () => {
+    const ctx = await retriever.retrieve('auth jwt session')
+    expect(ctx.scoredModules.length).toBeGreaterThan(0)
+    const authScored = ctx.scoredModules.find(m => m.name === 'AuthService')
+    expect(authScored).toBeDefined()
+    expect(authScored!.score).toBeGreaterThan(0)
+  })
+
+  it('gives higher score for name matches', async () => {
+    const ctx = await retriever.retrieve('AuthService')
+    const auth = ctx.scoredModules.find(m => m.name === 'AuthService')
+    const user = ctx.scoredModules.find(m => m.name === 'UserRepository')
+    if (user) {
+      expect(auth!.score).toBeGreaterThan(user.score)
+    }
+  })
+
+  it('respects maxModules limit', async () => {
+    const limitedStore = new JsonMemoryStore(join(tmpDir, 'limited'))
+    const limitedRetriever = new KeywordContextRetriever(limitedStore, { maxModules: 1 })
+    await limitedStore.saveModule('AuthService', authModule)
+    await limitedStore.saveModule('UserRepository', userModule)
+    const ctx = await limitedRetriever.retrieve('auth')
+    expect(ctx.scoredModules.length).toBeLessThanOrEqual(1)
   })
 })
