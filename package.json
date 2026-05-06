@@ -1,5 +1,5 @@
 {
-  "name": "memorag",
+  "name": "@rubenvalls/memorag",
   "version": "2.0.0",
   "type": "module",
   "description": "Intelligent context management layer for LLMs — incremental memory, token-efficient retrieval, MCP server included",
@@ -49,5 +49,8 @@
     "jest": "^30.3.0",
     "ts-jest": "^29.4.9",
     "typescript": "^6.0.3"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }
