@@ -1,161 +1,98 @@
 # memorag
 
-A Node.js/TypeScript library that acts as an intelligent context management layer between your code and any LLM. memorag learns your project incrementally and injects only the relevant context per query — saving tokens and improving response quality.
+Zero-config persistent memory for AI coding assistants. memorag learns your codebase incrementally and injects relevant context into every conversation — automatically, with no API keys and no manual steps.
 
-**No API keys required.** memorag uses static analysis to extract module structure and integrates with AI coding assistants via MCP (Model Context Protocol). The LLM is provided by the host assistant, not by memorag.
+## How it works
 
-## How it works automatically
+You add **one JSON snippet** to your assistant's config. That's it. memorag:
 
-When you connect memorag as an MCP server, it sends **instructions** to the AI assistant via the MCP protocol — no extra config files or setup needed. Any MCP-compatible client (Claude Code, OpenCode, Codex, etc.) receives these instructions automatically and knows how to use memorag's tools:
+1. Connects as an MCP server and sends instructions to the assistant automatically
+2. The assistant calls `ingest_file` when it reads or edits source files → memorag parses them statically (no LLM needed, zero cost)
+3. The assistant calls `retrieve_context` before answering code questions → gets relevant modules and facts
+4. The assistant calls `save_fact` after learning verified facts → memorag persists them
 
-1. **Before answering** → the assistant calls `retrieve_context` to load relevant modules
-2. **When reading/editing files** → the assistant calls `ingest_file` to update memory
-3. **After learning facts** → the assistant calls `save_fact` to persist verified knowledge
+You never trigger these tools manually. The assistant uses them because memorag tells it to via the MCP protocol.
 
-This is **built into the MCP protocol** — zero external dependencies, zero config files.
+## Setup
 
-## Features
+Add this to your MCP client config:
 
-- **Zero cost** — no external API calls, runs entirely locally
-- **MCP server** — plug into any MCP-compatible assistant, instructions delivered automatically
-- **Static parsing** — extracts exports, imports, classes, functions, and throws from TS/JS, Python, Go, Rust, Java, Ruby
-- **Persistent memory** — stores structured JSON summaries under your project
-- **Hash-based refresh** — re-ingests automatically when source files change
-- **Confidence scoring** — only persists facts above a configurable threshold
-- **Token-efficient retrieval** — keyword matching with scoring and one-level relational expansion
-- **CLI** — ingest, inspect, and parse from the terminal
-
-## Installation
-
-```bash
-npm install memorag
-```
-
-Requires Node.js 18+.
-
-## Quick start — MCP server
-
-Add to your MCP client config (Claude Code, OpenCode, etc.):
-
+**Claude Code** — in `.claude/settings.json`:
 ```json
 {
   "mcpServers": {
     "memorag": {
       "command": "npx",
-      "args": ["-y", "memorag", "--memory-path", "./docs/memorag"]
+      "args": ["-y", "memorag"]
     }
   }
 }
 ```
 
-That's it. The AI assistant will automatically use memorag's tools when connected:
-
-| Tool | Description |
-|------|-------------|
-| `ingest_file` | Analyze a source file and store a structured summary |
-| `retrieve_context` | Get relevant modules and facts for a query |
-| `save_fact` | Save a verifiable fact from conversation |
-| `register_module` | Manually register or refine a module |
-| `get_memory` | Retrieve the full memory state |
-| `remove_module` | Remove a module from memory |
-
-Example workflow in Claude Code:
-
-```
-> ingest_file ./src/auth/AuthService.ts
-→ Module "AuthService" saved: exports login(), verify(), dependencies UserRepository
-
-> retrieve_context how does authentication work?
-→ AuthService: Manages JWT tokens. Exposes login(), verify(). Depends on UserRepository.
-  UserRepository: Reads and writes user records. Exposes findById(), save().
-
-> save_fact "Tokens expire after 24h" "AuthService" 0.95
-→ Fact saved: "Tokens expire after 24h" (AuthService, confidence: 0.95)
+**OpenCode** — in `.opencode.json`:
+```json
+{
+  "mcpServers": {
+    "memorag": {
+      "command": "npx",
+      "args": ["-y", "memorag"]
+    }
+  }
+}
 ```
 
-## Quick start — Programmatic API
+**Any MCP-compatible client** — same pattern: `command: "npx", args: ["-y", "memorag"]`.
 
-```typescript
-import { MemoAgent } from 'memorag'
+That's the full setup. No `npm install`, no API keys, no config files. `npx` downloads and runs memorag automatically.
 
-const agent = new MemoAgent({
-  memoryPath: './docs/memorag',
-  confidenceThreshold: 0.7,
-  logLevel: 'info',
-})
+## What happens after setup
 
-// Ingest source files — parses statically, no LLM needed
-await agent.ingest('./src/auth/AuthService.ts')
-await agent.ingest('./src/user/UserRepository.ts')
+When you ask your assistant a question, it will:
 
-// Retrieve relevant context for a query
-const { global, modules } = await agent.retrieve('authentication flow')
+1. Call `retrieve_context("your question")` — loads relevant modules and facts from memory
+2. Use that context to answer (instead of re-reading the entire codebase)
+3. Call `ingest_file("/path/to/file.ts")` on files it reads or edits — updates memory
+4. Call `save_fact("something it learned", "ModuleName", 0.95)` — saves verified knowledge
 
-// Save facts discovered during conversation
-await agent.saveFact('Tokens expire after 24h', 'AuthService', 0.95)
+This all happens automatically. You just have normal conversations.
 
-// Inspect memory
-const memory = await agent.getMemory()
-console.log(memory.modules)
+## Tools memorag provides
 
-// List, get, or remove modules
-const names = await agent.listModules()
-const mod = await agent.getModule('AuthService')
-await agent.removeModule('AuthService')
-```
+| Tool | When the assistant uses it | What it does |
+|------|---------------------------|-------------|
+| `ingest_file` | Reading or editing a source file | Parses statically, saves structured summary |
+| `retrieve_context` | Before answering a code question | Returns relevant modules and global facts |
+| `save_fact` | After discovering a verified fact | Persists fact with confidence score |
+| `register_module` | When the static parser misses details | Manually define or correct a module |
+| `get_memory` | Inspecting memory state | Returns all modules and facts |
+| `remove_module` | When a module is deleted or renamed | Removes it from memory |
 
-## CLI
+## What memorag parses automatically
 
-```bash
-# Start MCP server (default)
-npx memorag
+No LLM involved. Pure static analysis:
 
-# Ingest a file
-npx memorag ingest ./src/auth/AuthService.ts
-
-# Parse a file without saving (dry run)
-npx memorag parse ./src/auth/AuthService.ts
-
-# Inspect current memory
-npx memorag inspect
-```
-
-Options:
-
-- `--memory-path <path>` — where memory is persisted (default: `./docs/memorag`)
-
-## How it works
-
-### `ingest(filePath)`
-
-1. Reads the source file and computes a hash
-2. Skips if the file hasn't changed since last ingest
-3. Parses the file statically (no LLM) — extracts exports, imports, classes, functions, throws, tags
-4. Persists a structured summary to `docs/memorag/modules/{name}.json`
-
-### `retrieve(query)`
-
-1. Checks if any ingested source files have changed — re-ingests if so
-2. Retrieves relevant modules via keyword matching + relational expansion
-3. Returns scored modules and global facts for context injection
-
-### `saveFact(fact, module, confidence)`
-
-Saves a verifiable fact to global memory. Facts below the confidence threshold are discarded.
+| Language | Exports | Imports | Classes | Functions | Throws |
+|----------|---------|----------|---------|-----------|--------|
+| TypeScript/JS | Yes | Yes | Yes | Yes | Yes |
+| Python | Yes | Yes | Yes | Yes | Yes |
+| Go | Yes | — | Yes | Yes | — |
+| Rust | Yes | Yes | Yes | Yes | — |
+| Java | Yes | — | Yes | Yes | Yes |
+| Ruby | Yes | Yes | Yes | Yes | Yes |
 
 ## Memory structure
 
+Stored as human-readable JSON in your project:
+
 ```
 docs/memorag/
-├── global.json          # architecture, conventions, cross-cutting facts
+├── global.json          # project-wide facts
 └── modules/
-    ├── AuthService.json
-    ├── UserRepository.json
-    └── ...
+    ├── AuthService.json # per-module summaries
+    └── UserRepository.json
 ```
 
-Each module entry:
-
+Each module:
 ```json
 {
   "name": "AuthService",
@@ -171,80 +108,56 @@ Each module entry:
 }
 ```
 
-## API Reference
+When source files change, memorag detects it by hash and re-ingests automatically.
 
-### `new MemoAgent(config?)`
+## Programmatic API
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `memoryPath` | `string` | `./docs/memorag` | Where to persist memory |
-| `confidenceThreshold` | `number` | `0.7` | Minimum confidence to save facts |
-| `logLevel` | `'debug' \| 'info' \| 'warn' \| 'error' \| 'silent'` | `'silent'` | Log verbosity |
+For custom integrations:
 
-### `agent.ingest(sourcePath): Promise<void>`
+```typescript
+import { MemoAgent } from 'memorag'
 
-Parses the file statically and saves a module summary. Skips if unchanged.
+const agent = new MemoAgent({ memoryPath: './docs/memorag' })
 
-### `agent.retrieve(query): Promise<{ global, modules }>`
+await agent.ingest('./src/auth/AuthService.ts')
+const { modules } = await agent.retrieve('authentication flow')
+await agent.saveFact('Tokens expire after 24h', 'AuthService', 0.95)
 
-Returns relevant context (global facts + modules) for a query.
+const memory = await agent.getMemory()
+const mod = await agent.getModule('AuthService')
+const names = await agent.listModules()
+await agent.removeModule('OldModule')
+```
 
-### `agent.saveFact(fact, module, confidence): Promise<void>`
+## CLI commands
 
-Persists a fact to global memory if confidence is above threshold.
+The CLI runs automatically via MCP. These are available for manual use:
 
-### `agent.saveModule(module): Promise<void>`
+```bash
+npx memorag              # start MCP server (default)
+npx memorag ingest <file>  # parse and save a file
+npx memorag parse <file>    # parse without saving (dry run)
+npx memorag inspect         # show current memory
+```
 
-Manually register or update a module.
+## Configuration
 
-### `agent.getModule(name): Promise<ModuleMemory | null>`
-
-Get a single module by name.
-
-### `agent.listModules(): Promise<string[]>`
-
-List all module names.
-
-### `agent.removeModule(name): Promise<boolean>`
-
-Remove a module from memory.
-
-### `agent.getMemory(): Promise<{ global, modules }>`
-
-Returns the full memory state.
-
-### `StaticParser.parse(filePath, content): ParsedModule | null`
-
-Static method — parses a file and returns extracted metadata. Returns `null` for unsupported file types.
-
-### `KeywordContextRetriever`
-
-Accepts `maxModules` config to limit the number of returned modules.
-
-## Supported languages
-
-| Language | Extensions | Imports | Exports | Classes | Functions | Throws |
-|----------|-----------|---------|---------|---------|-----------|--------|
-| TypeScript/JS | `.ts` `.tsx` `.js` `.jsx` | Yes | Yes | Yes | Yes | Yes |
-| Python | `.py` `.pyi` | Yes | Yes | Yes | Yes | Yes |
-| Go | `.go` | — | Yes | Yes | Yes | — |
-| Rust | `.rs` | Yes | Yes | Yes | Yes | — |
-| Java | `.java` | — | Yes | Yes | Yes | Yes |
-| Ruby | `.rb` | Yes | Yes | Yes | Yes | Yes |
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--memory-path` | `./docs/memorag` | Where memory JSON files are stored |
+| `confidenceThreshold` | `0.7` | Minimum confidence to save facts |
 
 ## Architecture
 
 ```
 memorag
-├── MCP Server          — tools for AI assistants (automatic instructions via protocol)
+├── MCP Server          — automatic instructions via protocol
 ├── MemoAgent           — programmatic API
-├── StaticParser        — language-aware static analysis (no LLM)
-├── MemoryStore         — persists/reads JSON from disk
+├── StaticParser        — zero-cost static analysis (6 languages)
+├── MemoryStore         — JSON persistence on disk
 ├── ContextRetriever    — keyword scoring + relational expansion
-└── PromptBuilder       — formats context for injection (utility)
+└── PromptBuilder       — context formatting (utility)
 ```
-
-Every layer is an interface — swap any implementation without touching the rest.
 
 ## License
 

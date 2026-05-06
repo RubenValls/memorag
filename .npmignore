@@ -1,0 +1,15 @@
+node_modules/
+dist/
+coverage/
+tests/
+src/
+.claude/
+.git/
+*.test.ts
+*.test.js
+*.test.d.ts
+*.test.d.ts.map
+*.test.js.map
+jest.config.cjs
+tsconfig.json
+tsconfig.test.json

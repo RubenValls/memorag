@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 import { startMcpServer } from './mcp/server.js'
 import { MemoAgent } from './agent/MemoAgent.js'
 import { StaticParser } from './static/StaticParser.js'
