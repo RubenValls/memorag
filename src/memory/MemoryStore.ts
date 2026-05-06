@@ -13,13 +13,26 @@ export interface MemoryStore {
 export class JsonMemoryStore implements MemoryStore {
   private globalPath: string
   private modulesDir: string
+  private writeQueue: Promise<void> = Promise.resolve()
 
   constructor(private basePath: string) {
     this.globalPath = join(basePath, 'global.json')
     this.modulesDir = join(basePath, 'modules')
   }
 
+  private safeModuleName(name: string): string {
+    if (!/^[\w\-. ]+$/.test(name)) {
+      throw new Error(`Invalid module name: "${name}"`)
+    }
+    return name
+  }
+
   async saveGlobal(entry: MemoryEntry): Promise<void> {
+    this.writeQueue = this.writeQueue.then(() => this._saveGlobal(entry))
+    return this.writeQueue
+  }
+
+  private async _saveGlobal(entry: MemoryEntry): Promise<void> {
     const memory = await this.getGlobal()
     const idx = memory.entries.findIndex(e => e.id === entry.id)
     if (idx >= 0) {
@@ -35,7 +48,7 @@ export class JsonMemoryStore implements MemoryStore {
   async saveModule(moduleName: string, data: ModuleMemory): Promise<void> {
     await mkdir(this.modulesDir, { recursive: true })
     await writeFile(
-      join(this.modulesDir, `${moduleName}.json`),
+      join(this.modulesDir, `${this.safeModuleName(moduleName)}.json`),
       JSON.stringify(data, null, 2)
     )
   }
@@ -43,18 +56,24 @@ export class JsonMemoryStore implements MemoryStore {
   async getGlobal(): Promise<GlobalMemory> {
     try {
       return JSON.parse(await readFile(this.globalPath, 'utf-8'))
-    } catch {
-      return { version: 1, updatedAt: new Date().toISOString(), entries: [] }
+    } catch (err: unknown) {
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+        return { version: 1, updatedAt: new Date().toISOString(), entries: [] }
+      }
+      throw err
     }
   }
 
   async getModule(moduleName: string): Promise<ModuleMemory | null> {
     try {
       return JSON.parse(
-        await readFile(join(this.modulesDir, `${moduleName}.json`), 'utf-8')
+        await readFile(join(this.modulesDir, `${this.safeModuleName(moduleName)}.json`), 'utf-8')
       )
-    } catch {
-      return null
+    } catch (err: unknown) {
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+        return null
+      }
+      throw err
     }
   }
 
