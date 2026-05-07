@@ -3,7 +3,17 @@ import { startMcpServer } from './mcp/server.js'
 import { MemoAgent } from './agent/MemoAgent.js'
 import { StaticParser } from './static/StaticParser.js'
 import { readFile } from 'node:fs/promises'
-import { resolve } from 'node:path'
+import { resolve, basename, extname } from 'node:path'
+import { homedir } from 'node:os'
+
+const [nodeMajor] = process.versions.node.split('.').map(Number)
+if (nodeMajor < 18) {
+  process.stderr.write(
+    `[memorag] Node.js v${process.versions.node} detected. Required: v18+.\n` +
+    `  Download: https://nodejs.org/en/download\n`
+  )
+  process.exit(1)
+}
 
 const args = process.argv.slice(2)
 const command = args[0]
@@ -13,7 +23,7 @@ function getMemoryPath(): string {
   if (idx !== -1 && args[idx + 1]) {
     return resolve(args[idx + 1])
   }
-  return './docs/memorag'
+  return resolve(homedir(), '.memorag')
 }
 
 async function main(): Promise<void> {
@@ -32,7 +42,7 @@ async function main(): Promise<void> {
     }
     const resolved = resolve(filePath)
     await agent.ingest(resolved)
-    const moduleName = resolved.split('/').pop()!.split('.')[0]
+    const moduleName = basename(resolved, extname(resolved))
     const mod = await agent.getModule(moduleName)
     if (mod) {
       console.log(JSON.stringify(mod, null, 2))

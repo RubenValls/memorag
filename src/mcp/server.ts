@@ -1,7 +1,12 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod'
+import { createRequire } from 'node:module'
+import { basename, extname } from 'node:path'
 import { MemoAgent } from '../agent/MemoAgent.js'
+
+const require = createRequire(import.meta.url)
+const { version: PKG_VERSION } = require('../../package.json') as { version: string }
 
 export interface McpServerConfig {
   memoryPath?: string
@@ -45,7 +50,7 @@ export function createMcpServer(config: McpServerConfig = {}): McpServer {
   })
 
   const server = new McpServer(
-    { name: 'memorag', version: '2.0.0' },
+    { name: 'memorag', version: PKG_VERSION },
     { instructions: INSTRUCTIONS },
   )
 
@@ -58,7 +63,7 @@ export function createMcpServer(config: McpServerConfig = {}): McpServer {
     async ({ path }) => {
       try {
         await agent.ingest(path)
-        const mod = await agent.getModule(path.split('/').pop()!.split('.')[0])
+        const mod = await agent.getModule(basename(path, extname(path)))
         if (!mod) {
           return { content: [{ type: 'text' as const, text: `Ingested ${path} but could not retrieve module. The file type may be unsupported.` }] }
         }

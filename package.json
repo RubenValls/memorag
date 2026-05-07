@@ -50,6 +50,9 @@
     "ts-jest": "^29.4.9",
     "typescript": "^6.0.3"
   },
+  "engines": {
+    "node": ">=18"
+  },
   "publishConfig": {
     "access": "public"
   }
