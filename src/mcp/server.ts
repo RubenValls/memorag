@@ -62,11 +62,17 @@ export function createMcpServer(config: McpServerConfig = {}): McpServer {
     },
     async ({ path }) => {
       try {
-        await agent.ingest(path)
-        const mod = await agent.getModule(basename(path, extname(path)))
-        if (!mod) {
-          return { content: [{ type: 'text' as const, text: `Ingested ${path} but could not retrieve module. The file type may be unsupported.` }] }
+        const result = await agent.ingest(path)
+        if (result === 'unreadable') {
+          return { content: [{ type: 'text' as const, text: `Cannot read file: ${path}` }], isError: true }
         }
+        if (result === 'unsupported') {
+          return { content: [{ type: 'text' as const, text: `Unsupported file type: ${extname(path) || '(no extension)'}. Supported: .ts .tsx .js .jsx .mjs .cjs .py .go .rs .java .rb` }], isError: true }
+        }
+        if (result === 'unchanged') {
+          return { content: [{ type: 'text' as const, text: `File unchanged, memory already up to date: ${path}` }] }
+        }
+        const mod = await agent.getModule(basename(path, extname(path)))
         return {
           content: [{
             type: 'text' as const,

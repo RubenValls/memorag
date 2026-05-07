@@ -41,14 +41,23 @@ async function main(): Promise<void> {
       process.exit(1)
     }
     const resolved = resolve(filePath)
-    await agent.ingest(resolved)
-    const moduleName = basename(resolved, extname(resolved))
-    const mod = await agent.getModule(moduleName)
+    const result = await agent.ingest(resolved)
+    if (result === 'unreadable') {
+      console.error(`Cannot read file: ${resolved}`)
+      process.exit(1)
+    }
+    if (result === 'unsupported') {
+      console.error(`Unsupported file type: ${extname(resolved) || '(no extension)'}`)
+      console.error(`Supported: .ts .tsx .js .jsx .mjs .cjs .py .go .rs .java .rb`)
+      process.exit(1)
+    }
+    if (result === 'unchanged') {
+      console.log(`Unchanged (skipped): ${resolved}`)
+      return
+    }
+    const mod = await agent.getModule(basename(resolved, extname(resolved)))
     if (mod) {
       console.log(JSON.stringify(mod, null, 2))
-    } else {
-      console.error(`Could not parse ${resolved}. Unsupported file type?`)
-      process.exit(1)
     }
     return
   }

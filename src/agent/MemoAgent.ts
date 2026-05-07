@@ -41,13 +41,13 @@ export class MemoAgent {
     this.logger.info(`saveModule: saved ${module.name}`)
   }
 
-  async ingest(sourcePath: string): Promise<void> {
+  async ingest(sourcePath: string): Promise<'ok' | 'unchanged' | 'unsupported' | 'unreadable'> {
     let content: string
     try {
       content = await readFile(sourcePath, 'utf-8')
     } catch {
       this.logger.warn(`ingest: cannot read file ${sourcePath}`)
-      return
+      return 'unreadable'
     }
 
     const hash = hashContent(content)
@@ -56,13 +56,13 @@ export class MemoAgent {
 
     if (existing?.sourceHash === hash) {
       this.logger.debug(`ingest: ${moduleName} unchanged, skipping`)
-      return
+      return 'unchanged'
     }
 
     const parsed = StaticParser.parse(sourcePath, content)
     if (!parsed) {
       this.logger.warn(`ingest: unsupported file type for ${sourcePath}`)
-      return
+      return 'unsupported'
     }
 
     const module: ModuleMemory = {
@@ -80,6 +80,8 @@ export class MemoAgent {
         await this.store.saveModule(depName, dep)
       }
     }
+
+    return 'ok'
   }
 
   async retrieve(text: string): Promise<{ global: GlobalMemory; modules: ModuleMemory[] }> {
