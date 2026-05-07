@@ -45,6 +45,8 @@ Add this to your MCP client config:
 
 That's the full setup. No `npm install`, no API keys, no config files. `npx` downloads and runs memorag automatically.
 
+**Requires Node.js v18 or higher.** memorag will print a clear error if your Node version is too old.
+
 ## What happens after setup
 
 When you ask your assistant a question, it will:
@@ -82,10 +84,10 @@ No LLM involved. Pure static analysis:
 
 ## Memory structure
 
-Stored as human-readable JSON in your project:
+Stored as human-readable JSON files. Default location: `~/.memorag` (your home directory, shared across projects). Override with `--memory-path`:
 
 ```
-docs/memorag/
+~/.memorag/
 ├── global.json          # project-wide facts
 └── modules/
     ├── AuthService.json # per-module summaries
@@ -148,7 +150,7 @@ npx memorag-mcp inspect         # show current memory
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `--memory-path` | `./docs/memorag` | Where memory JSON files are stored |
+| `--memory-path` | `~/.memorag` | Where memory JSON files are stored |
 | `confidenceThreshold` | `0.7` | Minimum confidence to save facts |
 
 ## Architecture
