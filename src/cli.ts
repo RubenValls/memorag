@@ -4,7 +4,6 @@ import { MemoAgent } from './agent/MemoAgent.js'
 import { StaticParser } from './static/StaticParser.js'
 import { readFile } from 'node:fs/promises'
 import { resolve, basename, extname } from 'node:path'
-import { homedir } from 'node:os'
 
 const [nodeMajor] = process.versions.node.split('.').map(Number)
 if (nodeMajor < 18) {
@@ -23,7 +22,7 @@ function getMemoryPath(): string {
   if (idx !== -1 && args[idx + 1]) {
     return resolve(args[idx + 1])
   }
-  return resolve(homedir(), '.memorag')
+  return resolve('docs/memorag')
 }
 
 async function main(): Promise<void> {

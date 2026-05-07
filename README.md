@@ -17,7 +17,19 @@ You never trigger these tools manually. The assistant uses them because memorag 
 
 Add this to your MCP client config:
 
-**Claude Code** — in `.claude/settings.json`:
+**Claude Code** — add a `.mcp.json` file at your project root (commit this to share with your team):
+```json
+{
+  "mcpServers": {
+    "memorag": {
+      "command": "npx",
+      "args": ["-y", "memorag-mcp"]
+    }
+  }
+}
+```
+
+Or add to `.claude/settings.json` for a personal setup not committed to the repo:
 ```json
 {
   "mcpServers": {
@@ -44,6 +56,11 @@ Add this to your MCP client config:
 **Any MCP-compatible client** — same pattern: `command: "npx", args: ["-y", "memorag-mcp"]`.
 
 That's the full setup. No `npm install`, no API keys, no config files. `npx` downloads and runs memorag automatically.
+
+> **Corporate/private registry?** If your environment uses a custom npm registry (Artifactory, Nexus, etc.), `npx` will search there and fail. Add `--registry` to force the public registry:
+> ```json
+> "args": ["-y", "--registry", "https://registry.npmjs.org", "memorag-mcp"]
+> ```
 
 **Requires Node.js v18 or higher.** memorag will print a clear error if your Node version is too old.
 
@@ -84,10 +101,10 @@ No LLM involved. Pure static analysis:
 
 ## Memory structure
 
-Stored as human-readable JSON files. Default location: `~/.memorag` (your home directory, shared across projects). Override with `--memory-path`:
+Stored as human-readable JSON files inside your project. Default location: `docs/memorag/`. Override with `--memory-path`:
 
 ```
-~/.memorag/
+docs/memorag/
 ├── global.json          # project-wide facts
 └── modules/
     ├── AuthService.json # per-module summaries
@@ -150,7 +167,7 @@ npx memorag-mcp inspect         # show current memory
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `--memory-path` | `~/.memorag` | Where memory JSON files are stored |
+| `--memory-path` | `docs/memorag` | Where memory JSON files are stored |
 | `confidenceThreshold` | `0.7` | Minimum confidence to save facts |
 
 ## Architecture
