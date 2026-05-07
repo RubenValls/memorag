@@ -14,33 +14,35 @@ export interface McpServerConfig {
   logLevel?: 'debug' | 'info' | 'warn' | 'error' | 'silent'
 }
 
-const INSTRUCTIONS = `You have access to memorag, a persistent memory system for codebase context. Use it proactively to build and maintain knowledge about the project.
+const INSTRUCTIONS = `memorag is a persistent memory system for this codebase. These are mandatory rules, not suggestions. Do not skip them even for small or simple tasks.
 
-## When to use each tool
+## MANDATORY: Before answering any code question
 
-### At the start of a conversation:
-1. Call \`retrieve_context\` with the user's topic to load relevant context before answering.
+ALWAYS call \`retrieve_context\` first with the user's topic — no exceptions, regardless of how simple the task seems. Memory may contain facts that change your answer. Skipping this means operating blind on a codebase you may not fully know.
 
-### When encountering a source file:
-2. Call \`ingest_file\` with the file's absolute path. This parses the file statically (no LLM needed) and saves a structured summary. Always ingest files you reference or modify.
+## MANDATORY: After reading or modifying any source file
 
-### After discovering new facts about the codebase:
-3. Call \`save_fact\` with the fact, the related module name (or "global"), and your confidence (0-1). Only save facts you are certain about — confidence below 0.7 is discarded.
+ALWAYS call \`ingest_file\` with the absolute path immediately after touching a file. This keeps memory current. If you modify a file and do not ingest it, the next conversation will have stale context.
 
-### When the static parser misses details:
-4. Call \`register_module\` to manually correct or enrich a module's summary.
+These two rules apply even if:
+- The task feels small or surgical
+- You think you already know the answer
+- The file was just briefly referenced
 
-### To inspect memory:
-5. Call \`get_memory\` to see all stored modules and facts.
+## After learning new facts about the codebase
 
-### To remove stale data:
-6. Call \`remove_module\` to delete a module that is no longer relevant.
+Call \`save_fact\` with the fact, the related module name (or "global"), and confidence (0–1). Only save verified observations — confidence below 0.7 is discarded.
 
-## Important guidelines
-- Always ingest files before answering questions about them, so memory stays current.
-- Always retrieve context before answering code questions — this avoids redundant code reading.
-- Save facts only from verified observations, not assumptions.
-- Use the module name (e.g., "AuthService") not the file path for the module parameter.`
+## Other tools
+
+- \`register_module\` — manually correct or enrich what the static parser extracted
+- \`get_memory\` — inspect full memory state
+- \`remove_module\` — remove a deleted or renamed module
+
+## Notes
+
+- Use the module name (e.g., "AuthService") not the file path for the \`module\` parameter in \`save_fact\`
+- \`ingest_file\` requires an absolute path`
 
 export function createMcpServer(config: McpServerConfig = {}): McpServer {
   const agent = new MemoAgent({

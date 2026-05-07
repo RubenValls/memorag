@@ -1,6 +1,6 @@
 {
   "name": "memorag-mcp",
-  "version": "2.0.6",
+  "version": "2.0.7",
   "type": "module",
   "description": "Intelligent context management layer for LLMs — incremental memory, token-efficient retrieval, MCP server included",
   "main": "dist/index.js",
