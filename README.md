@@ -1,7 +1,7 @@
 # memorag-mcp
 
 <p align="center">
-  <img src="assets/memorag.png" alt="memorag logo" width="200" />
+  <img src="assets/memorag.png" alt="memorag logo" width="100%" />
 </p>
 
 Zero-config persistent memory for AI coding assistants. memorag learns your codebase incrementally and injects relevant context into every conversation — automatically, with no API keys and no manual steps.
