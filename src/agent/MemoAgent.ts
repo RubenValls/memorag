@@ -22,6 +22,7 @@ export class MemoAgent {
   private retriever: ContextRetriever
   private confidenceThreshold: number
   private logger: Logger
+  private refreshedThisSession = false
 
   constructor(config: MemoAgentConfig = {}) {
     const memoryPath = config.memoryPath ?? './docs/memorag'
@@ -135,19 +136,33 @@ export class MemoAgent {
   }
 
   private async checkAndRefreshModules(): Promise<void> {
+    if (this.refreshedThisSession) return
+    this.refreshedThisSession = true
+
     const modules = await this.store.getAllModules()
-    for (const module of modules) {
-      if (!module.sourcePath) continue
-      try {
-        const content = await readFile(module.sourcePath, 'utf-8')
-        const hash = hashContent(content)
-        if (hash !== module.sourceHash) {
-          this.logger.info(`retrieve: ${module.name} changed, re-ingesting`)
-          await this.ingest(module.sourcePath)
-        }
-      } catch {
-        this.logger.warn(`retrieve: cannot read ${module.sourcePath}, skipping hash check`)
-      }
-    }
+    await Promise.all(
+      modules
+        .filter(m => m.sourcePath)
+        .map(async (module) => {
+          try {
+            const content = await readFile(module.sourcePath, 'utf-8')
+            const hash = hashContent(content)
+            if (hash !== module.sourceHash) {
+              this.logger.info(`retrieve: ${module.name} changed, re-ingesting`)
+              await this._ingestContent(module.sourcePath, content, module)
+            }
+          } catch {
+            this.logger.warn(`retrieve: cannot read ${module.sourcePath}, skipping hash check`)
+          }
+        })
+    )
+  }
+
+  private async _ingestContent(sourcePath: string, content: string, existing: ModuleMemory): Promise<void> {
+    const parsed = StaticParser.parse(sourcePath, content)
+    if (!parsed) return
+    const module: ModuleMemory = { ...parsed, usedBy: existing.usedBy ?? [] }
+    await this.store.saveModule(module.name, module)
+    this.logger.info(`ingest: saved ${module.name}`)
   }
 }

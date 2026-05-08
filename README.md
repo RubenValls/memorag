@@ -1,5 +1,9 @@
 # memorag-mcp
 
+<p align="center">
+  <img src="assets/memorag.png" alt="memorag logo" width="200" />
+</p>
+
 Zero-config persistent memory for AI coding assistants. memorag learns your codebase incrementally and injects relevant context into every conversation — automatically, with no API keys and no manual steps.
 
 ## How it works
@@ -127,7 +131,7 @@ Each module:
 }
 ```
 
-When source files change, memorag detects it by hash and re-ingests automatically.
+When source files change, memorag detects it by hash and re-ingests automatically. The check runs once per session on the first `retrieve_context` call — all changed files are re-ingested in parallel before returning context.
 
 ## Programmatic API
 
@@ -142,7 +146,8 @@ import { MemoAgent } from 'memorag-mcp'
 
 const agent = new MemoAgent({ memoryPath: './docs/memorag' })
 
-await agent.ingest('./src/auth/AuthService.ts')
+const result = await agent.ingest('./src/auth/AuthService.ts')
+// result: 'ok' | 'unchanged' | 'unsupported' | 'unreadable'
 const { modules } = await agent.retrieve('authentication flow')
 await agent.saveFact('Tokens expire after 24h', 'AuthService', 0.95)
 
